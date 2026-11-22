@@ -4,7 +4,7 @@ import AppKit
 // MARK: - Root
 
 struct RootView: View {
-    static let size = CGSize(width: 300, height: 410)
+    static let size = CGSize(width: 300, height: 440)
 
     @ObservedObject var model: TimerModel
     var onQuit: () -> Void
@@ -100,6 +100,19 @@ struct SetupView: View {
                 .foregroundColor(p.secondary)
                 .padding(.top, 2)
 
+            HStack {
+                Text("Repeat cycle")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(p.text)
+                Spacer()
+                Toggle("", isOn: $model.repeatCycles)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .tint(Brand.orange)
+            }
+            .padding(.horizontal, 6)
+
             Spacer(minLength: 0)
 
             Button("Start") { model.start() }
@@ -134,7 +147,7 @@ struct BigTile: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 66)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.card))
+        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(p.card))
         .overlay(ScrollCatcher { value = clamp(value + $0) })
     }
 
@@ -176,7 +189,7 @@ struct CompactTile: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 86)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.card))
+        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(p.card))
         .overlay(ScrollCatcher { value = clamp(value + $0) })
     }
 

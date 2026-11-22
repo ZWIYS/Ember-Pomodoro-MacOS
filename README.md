@@ -21,6 +21,7 @@ Click the menu bar item to open a translucent popover.
 - **Break**: short break length in minutes
 - **Cycle**: number of short breaks before a long one
 - **Long break +N**: how many minutes the long break lasts on top of the short break (long break = short break + N)
+- **Repeat cycle**: start a new cycle automatically after the long break (on by default); when off, Ember stops and returns to setup
 - **Start**
 
 ### Running screen

@@ -4,6 +4,7 @@
 <dict>
     <key>CFBundleExecutable</key><string>Ember</string>
     <key>CFBundleIdentifier</key><string>com.ember.pomodoro</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleName</key><string>Ember</string>
     <key>CFBundleDisplayName</key><string>Ember</string>
     <key>CFBundlePackageType</key><string>APPL</string>

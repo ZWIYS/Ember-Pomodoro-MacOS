@@ -57,6 +57,10 @@ final class TimerModel: ObservableObject {
             defaults.set(v, forKey: "longBreakExtra")
         }
     }
+    /// Start a new cycle automatically after the long break (otherwise stop).
+    @Published var repeatCycles: Bool {
+        didSet { defaults.set(repeatCycles, forKey: "repeatCycles") }
+    }
     @Published var theme: ThemeChoice {
         didSet { defaults.set(theme.rawValue, forKey: "theme") }
     }
@@ -83,6 +87,7 @@ final class TimerModel: ObservableObject {
         breakMinutes = stored("breakMinutes", 5, Self.breakRange)
         cycleLength = stored("cycleLength", 3, Self.cycleRange)
         longBreakExtra = stored("longBreakExtra", 10, Self.extraRange)
+        repeatCycles = d.object(forKey: "repeatCycles") as? Bool ?? true
         if let raw = d.string(forKey: "theme"), let t = ThemeChoice(rawValue: raw) {
             theme = t
         } else {
@@ -204,7 +209,7 @@ final class TimerModel: ObservableObject {
     }
 
     private func finishPhase() {
-        NSSound(named: "Glass")?.play()
+        Beeper.play()
         flashUntil = Date().addingTimeInterval(5)
 
         switch phase {
@@ -218,8 +223,12 @@ final class TimerModel: ObservableObject {
         case .shortBreak:
             begin(.work)
         case .longBreak:
-            shortBreaksDone = 0
-            begin(.work)
+            if repeatCycles {
+                shortBreaksDone = 0
+                begin(.work)
+            } else {
+                stop()
+            }
         }
     }
 }

@@ -6,7 +6,8 @@ import Combine
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = TimerModel()
     private var statusItem: NSStatusItem!
-    private let popover = NSPopover()
+    private var panel: EmberPanel!
+    private var outsideClickMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var blinkTimer: Timer?
 
@@ -18,13 +19,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        popover.behavior = .transient
-        popover.animates = true
-        popover.contentSize = NSSize(width: RootView.size.width, height: RootView.size.height)
-        popover.contentViewController = NSHostingController(
-            rootView: RootView(model: model, onQuit: { NSApp.terminate(nil) })
+        panel = EmberPanel.make(
+            size: RootView.size,
+            content: RootView(model: model, onQuit: { NSApp.terminate(nil) })
         )
-        popover.appearance = model.theme.appearance
+        panel.appearance = model.theme.appearance
+
+        // Close when the user clicks anywhere outside, or switches to another app.
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hidePanel() }
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hidePanel() }
+        }
 
         model.objectWillChange
             .receive(on: DispatchQueue.main)
@@ -33,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         model.$theme
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] theme in self?.popover.appearance = theme.appearance }
+            .sink { [weak self] theme in self?.panel.appearance = theme.appearance }
             .store(in: &cancellables)
 
         // Drives the tray blink at the end of a phase.
@@ -59,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusItem.button?.performClick(nil)
             statusItem.menu = nil
         } else {
-            togglePopover()
+            togglePanel()
         }
     }
 
@@ -67,14 +78,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    private func togglePopover() {
-        guard let button = statusItem.button else { return }
-        if popover.isShown {
-            popover.performClose(nil)
-        } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            NSApp.activate(ignoringOtherApps: true)
+    private func togglePanel() {
+        panel.isVisible ? hidePanel() : showPanel()
+    }
+
+    private func showPanel() {
+        guard let buttonWindow = statusItem.button?.window else { return }
+        let size = RootView.size
+        let anchor = buttonWindow.frame
+
+        var x = anchor.midX - size.width / 2
+        if let visible = buttonWindow.screen?.visibleFrame {
+            x = min(max(x, visible.minX + 8), visible.maxX - size.width - 8)
         }
+        panel.setFrame(NSRect(x: x, y: anchor.minY - size.height - 6, width: size.width, height: size.height), display: true)
+
+        panel.alphaValue = 0
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.12
+            panel.animator().alphaValue = 1
+        }
+        panel.invalidateShadow()
+    }
+
+    private func hidePanel() {
+        guard panel.isVisible else { return }
+        panel.orderOut(nil)
     }
 
     private func refreshTitle() {
@@ -92,11 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         switch model.state {
         case .idle:
-            title.append(dot(.tertiaryLabelColor))
-            title.append(NSAttributedString(string: "Ember", attributes: [
-                .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-                .foregroundColor: NSColor.labelColor,
-            ]))
+            // Idle: just a timer icon, no text.
+            break
 
         case .running, .paused:
             let paused = model.state == .paused
@@ -113,6 +141,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ]))
         }
 
+        if model.state == .idle {
+            let image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Ember")
+            image?.isTemplate = true
+            button.image = image
+        } else {
+            button.image = nil
+        }
         button.attributedTitle = title
     }
 
