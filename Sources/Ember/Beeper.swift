@@ -1,7 +1,7 @@
 import AppKit
 import AVFoundation
 
-/// Plays the alert at the end of a phase: the system "Hillside" tone twice in a row.
+/// Plays the alert at the end of a phase: the system "Hillside" tone twice with a short pause.
 /// The file is read from macOS at runtime (not bundled); if it is missing, a soft
 /// triple beep synthesized in code is used instead.
 @MainActor
@@ -9,22 +9,33 @@ enum Beeper {
     private static let hillside = URL(fileURLWithPath:
         "/System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/Ringtones/Hillside.m4r")
 
-    private static var player: AVAudioPlayer?
+    /// The audible part of Hillside is ~0.7 s, followed by silence in the file.
+    private static let audibleLength = 0.7
+    /// Pause between the two plays.
+    private static let gap = 0.5
+
+    private static var players: [AVAudioPlayer] = []
     private static var sound: NSSound?
 
     static func play() {
-        player?.stop()
+        players.forEach { $0.stop() }
+        players = []
         sound?.stop()
 
-        if let p = try? AVAudioPlayer(contentsOf: hillside) {
-            p.numberOfLoops = 1   // one extra repeat = plays twice
-            p.volume = 0.8
-            p.prepareToPlay()
-            p.play()
-            player = p
+        guard let first = try? AVAudioPlayer(contentsOf: hillside),
+              let second = try? AVAudioPlayer(contentsOf: hillside) else {
+            playFallbackBeeps()
             return
         }
-        playFallbackBeeps()
+        for p in [first, second] {
+            p.volume = 0.8
+            p.prepareToPlay()
+        }
+        // Schedule both on the same clock so the gap is exact.
+        let start = first.deviceCurrentTime + 0.05
+        first.play(atTime: start)
+        second.play(atTime: start + audibleLength + gap)
+        players = [first, second]
     }
 
     private static func playFallbackBeeps() {
