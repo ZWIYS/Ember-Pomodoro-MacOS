@@ -3,13 +3,14 @@ import SwiftUI
 import Combine
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let model = TimerModel()
     private var statusItem: NSStatusItem!
     private var panel: EmberPanel!
     private var outsideClickMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var blinkTimer: Timer?
+    private var lastHide = Date.distantPast
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -24,15 +25,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             content: RootView(model: model, onQuit: { NSApp.terminate(nil) })
         )
         panel.appearance = model.theme.appearance
+        panel.delegate = self
 
-        // Close when the user clicks anywhere outside, or switches to another app.
+        // Close when the user clicks anywhere outside (the panel never activates the app,
+        // so whatever app was frontmost, including a full-screen one, stays frontmost).
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.hidePanel() }
-        }
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didResignActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.hidePanel() }
         }
@@ -79,7 +77,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func togglePanel() {
-        panel.isVisible ? hidePanel() : showPanel()
+        if panel.isVisible {
+            hidePanel()
+        } else if Date().timeIntervalSince(lastHide) > 0.25 {
+            showPanel()
+        }
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        hidePanel()
     }
 
     private func showPanel() {
@@ -95,7 +101,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
             panel.animator().alphaValue = 1
@@ -107,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func hidePanel() {
         guard panel.isVisible else { return }
+        lastHide = Date()
         panel.orderOut(nil)
     }
 

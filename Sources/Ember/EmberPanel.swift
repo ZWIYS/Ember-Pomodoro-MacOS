@@ -17,7 +17,7 @@ final class EmberPanel: NSPanel {
     static func make<Content: View>(size: CGSize, content: Content) -> EmberPanel {
         let panel = EmberPanel(
             contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
