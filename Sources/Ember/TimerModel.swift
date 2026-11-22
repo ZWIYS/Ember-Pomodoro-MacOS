@@ -24,6 +24,7 @@ final class TimerModel: ObservableObject {
     nonisolated static let cycleRange = 0...12
     nonisolated static let extraRange = 0...60
     nonisolated static let extendStep = 5
+    nonisolated static let maxPhaseSeconds = sessionRange.upperBound * 60
 
     private let defaults = UserDefaults.standard
 
@@ -115,6 +116,8 @@ final class TimerModel: ObservableObject {
         }
     }
 
+    var canExtend: Bool { totalSeconds < Self.maxPhaseSeconds }
+
     var isFlashing: Bool {
         guard let until = flashUntil else { return false }
         return until > Date()
@@ -159,7 +162,9 @@ final class TimerModel: ObservableObject {
 
     /// Extends the current phase without stopping it.
     func extend(minutes: Int = TimerModel.extendStep) {
-        let delta = minutes * 60
+        // A phase can never be stretched beyond the maximum session length (3 hours).
+        let delta = min(minutes * 60, max(0, Self.maxPhaseSeconds - totalSeconds))
+        guard delta > 0 else { return }
         totalSeconds += delta
         remainingSeconds += delta
         if state == .running, let end = endDate {

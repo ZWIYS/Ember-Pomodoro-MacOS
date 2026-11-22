@@ -142,7 +142,7 @@ struct BigTile: View {
             Spacer()
             StepButton(systemName: "chevron.down", p: p) { value = clamp(value - 1) }
             NumberField(value: $value, range: range, size: 40, p: p)
-                .frame(width: 72)
+                .frame(width: 88)
             StepButton(systemName: "chevron.up", p: p) { value = clamp(value + 1) }
         }
         .padding(.horizontal, 14)
@@ -209,6 +209,8 @@ struct NumberField: View {
             .font(.system(size: size, weight: .semibold, design: .rounded))
             .monospacedDigit()
             .foregroundColor(p.text)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 }
 
@@ -280,6 +282,8 @@ struct RunningView: View {
             if model.phase == .work {
                 Button("+\(TimerModel.extendStep) min") { model.extend() }
                     .buttonStyle(PillButtonStyle(fill: p.card, foreground: p.secondary, height: 26, size: 12, horizontalPadding: 12))
+                    .disabled(!model.canExtend)
+                    .opacity(model.canExtend ? 1 : 0.4)
             } else {
                 Color.clear.frame(height: 26)
             }
