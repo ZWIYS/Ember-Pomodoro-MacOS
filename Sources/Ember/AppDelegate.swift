@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
             panel.animator().alphaValue = 1
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated { self?.panel.invalidateShadow() }
         }
         panel.invalidateShadow()
     }

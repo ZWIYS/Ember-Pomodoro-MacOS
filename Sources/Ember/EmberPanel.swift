@@ -33,10 +33,17 @@ final class EmberPanel: NSPanel {
         blur.material = .popover
         blur.blendingMode = .behindWindow
         blur.state = .active
-        blur.wantsLayer = true
-        blur.layer?.cornerRadius = cornerRadius
-        blur.layer?.cornerCurve = .continuous
-        blur.layer?.masksToBounds = true
+        // A mask image (instead of a layer corner radius) clips the blur itself and
+        // lets the window shadow follow the rounded shape, so no square halo is left.
+        let r = cornerRadius
+        let mask = NSImage(size: NSSize(width: r * 2 + 1, height: r * 2 + 1), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: r, yRadius: r).fill()
+            return true
+        }
+        mask.capInsets = NSEdgeInsets(top: r, left: r, bottom: r, right: r)
+        mask.resizingMode = .stretch
+        blur.maskImage = mask
 
         let host = NSHostingView(rootView: content)
         host.frame = blur.bounds
